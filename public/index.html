@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Accès Shimato</title>
+    <style>
+        body { font-family: Arial; text-align: center; padding: 50px; }
+        button { background: #7289DA; color: white; border: none; padding: 15px 30px; 
+                 border-radius: 5px; font-size: 18px; cursor: pointer; }
+        button:hover { background: #5b6eae; }
+    </style>
+</head>
+<body>
+    <h1>Accès Shimato</h1>
+    <p><strong>Payer 10 € / mois</strong></p>
+    <hr>
+    
+    <button onclick="createCheckoutSession()">Payer 10 € / mois</button>
+    
+    <script>
+    async function createCheckoutSession() {
+        const discordId = prompt("Entrez votre ID Discord:");
+        if (!discordId) return;
+        
+        try {
+            const response = await fetch('http://localhost:4242/create-checkout-session', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ discordId: discordId })
+            });
+            
+            const data = await response.json();
+            
+            if (data.url) {
+                window.location.href = data.url;
+            } else {
+                alert("Erreur : " + (data.error || "URL Stripe manquante"));
+            }
+        } catch (error) {
+            alert("Erreur de connexion au serveur");
+            console.error(error);
+        }
+    }
+    </script>
+</body>
+</html>
