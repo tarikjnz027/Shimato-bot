@@ -1,0 +1,22 @@
+name: Garder mon bot Shimato éveillé
+
+# Quand ce workflow va-t-il s'exécuter ?
+on:
+  schedule:
+    # Toutes les 10 minutes ! C'est le réveil-matin de ton bot.
+    # L'expression '*/10 * * * *' signifie "toutes les 10 minutes" [citation:2][citation:4][citation:5].
+    - cron: '*/10 * * * *'
+  workflow_dispatch:  # Ceci te permet de le lancer manuellement depuis l'onglet Actions pour le tester
+
+jobs:
+  ping_render:
+    name: Envoyer un ping pour réveiller le bot
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pinger l'URL du bot
+        # Cette commande curl envoie une simple requête GET à ton bot.
+        # Le '-s' rend la commande silencieuse, '-o /dev/null' jette la réponse (on s'en fiche).
+        run: |
+          echo "📡 Ping envoyé à https://shimato-bot.onrender.com à $(date)"
+          curl -s -o /dev/null https://shimato-bot.onrender.com
+          echo "✅ Ping terminé !"
