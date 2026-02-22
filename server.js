@@ -3,7 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const Stripe = require("stripe");
 const { Client, Intents } = require("discord.js");
-const emailjs = require("emailjs");
+const emailjs = require("emailjs"); // ← CORRECT ✅
 
 // ========== INIT ==========
 const app = express();
@@ -79,12 +79,13 @@ app.post("/create-checkout-session", async (req, res) => {
                 price: process.env.STRIPE_PRICE_ID,
                 quantity: 1
             }],
-            success_url: "http://localhost:4242/success.html",
-            cancel_url: "http://localhost:4242/cancel.html",
+            success_url: "https://shimato-bot.onrender.com/success.html",
+            cancel_url: "https://shimato-bot.onrender.com/",
             metadata: {
                 discord_id: req.body.discordId || "inconnu"
             }
         });
+        // C'est CETTE LIGNE qui est cruciale !
         res.json({ url: session.url });
     } catch (err) {
         console.error("❌ Erreur Stripe :", err.message);
