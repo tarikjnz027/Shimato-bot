@@ -1,73 +1,53 @@
-// ========== IMPORTS ==========
 require("dotenv").config();
 const express = require("express");
 const Stripe = require("stripe");
-const { Client, Intents } = require("discord.js");
-const emailjs = require("emailjs"); // ← CORRECT ✅
 
-// ========== INIT ==========
 const app = express();
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-const client = new Client({
-    intents: [
-        Intents.FLAGS.GUILDS,
-        Intents.FLAGS.GUILD_MESSAGES,
-        Intents.FLAGS.MESSAGE_CONTENT
-    ]
-});
 
-// ========== MIDDLEWARE GÉNÉRAUX ==========
-app.use(express.static("site"));
-
-// ========== ROUTE SPÉCIALE WEBHOOK (CORPS BRUT OBLIGATOIRE) ==========
-app.post('/stripe-webhook', express.raw({ type: 'application/json' }), async (req, res) => {
-    const sig = req.headers['stripe-signature'];
-    let event;
-
-    try {
-        event = stripe.webhooks.constructEvent(
-            req.body,
-            sig,
-            process.env.STRIPE_WEBHOOK_SECRET
-        );
-        console.log('✅ Signature webhook vérifiée avec succès !');
-    } catch (err) {
-        console.error('❌ Signature webhook invalide:', err.message);
-        return res.status(400).send(`Webhook Error: ${err.message}`);
-    }
-
-    if (event.type === 'checkout.session.completed') {
-        const session = event.data.object;
-        const customerEmail = session.customer_details.email;
-        const customerName = session.customer_details.name || 'Utilisateur';
-        const discordId = session.metadata?.discord_id;
-
-        console.log(`✅ Paiement reçu de ${customerEmail} (Discord: ${discordId})`);
-
-        const server = emailjs.server.connect({
-            user: process.env.EMAILJS_USER_ID,
-            password: process.env.EMAILJS_ACCESS_TOKEN,
-            host: 'smtp.emailjs.com',
-            ssl: true,
-            port: 465
-        });
-
-        server.send({
-            from: process.env.EMAILJS_FROM_EMAIL,
-            to: customerEmail,
-            subject: 'Bienvenue sur Shimato !',
-            text: `Salut ${customerName},\n\nTon abonnement Shimato à 10€/mois est confirmé !\n\nRejoins le serveur Discord ici : https://discord.gg/ton-lien\n\nÀ tout de suite !`
-        }, (err, msg) => {
-            if (err) console.error('❌ Erreur email:', err.message);
-            else console.log('✅ Email envoyé à', customerEmail);
-        });
-    }
-
-    res.json({ received: true });
-});
-
-// ========== MIDDLEWARE JSON POUR TOUTES LES AUTRES ROUTES ==========
+// Middleware
 app.use(express.json());
+app.use(express.static("public"));
+
+// ========== PAGE D'ACCUEIL ==========
+app.get("/", (req, res) => {
+    res.send(`
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Shimato - Paiement</title>
+            <script src="https://js.stripe.com/v3/"></script>
+            <style>
+                body { font-family: Arial, sans-serif; text-align: center; padding: 50px; }
+                button { background-color: #6772e5; color: white; padding: 12px 24px; border: none; border-radius: 4px; font-size: 16px; cursor: pointer; }
+                button:hover { background-color: #5469d4; }
+            </style>
+        </head>
+        <body>
+            <h1>🎉 Shimato - Accès Premium</h1>
+            <p>Abonnement à <strong>10,00 € par mois</strong></p>
+            <button id="checkoutBtn">Payer maintenant</button>
+            <script>
+                const stripe = Stripe('${process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY}');
+                const priceId = '${process.env.STRIPE_PRICE_ID}';
+                
+                document.getElementById('checkoutBtn').addEventListener('click', async () => {
+                    const response = await fetch('/create-checkout-session', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' }
+                    });
+                    const session = await response.json();
+                    if (session.id) {
+                        await stripe.redirectToCheckout({ sessionId: session.id });
+                    } else {
+                        alert('Erreur: ' + session.error);
+                    }
+                });
+            </script>
+        </body>
+        </html>
+    `);
+});
 
 // ========== ROUTE : CRÉER UN CHECKOUT ==========
 app.post("/create-checkout-session", async (req, res) => {
@@ -80,55 +60,17 @@ app.post("/create-checkout-session", async (req, res) => {
                 quantity: 1
             }],
             success_url: "https://shimato-bot.onrender.com/success.html",
-            cancel_url: "https://shimato-bot.onrender.com/",
-            metadata: {
-                discord_id: req.body.discordId || "inconnu"
-            }
+            cancel_url: "https://shimato-bot.onrender.com/"
         });
-        // C'est CETTE LIGNE qui est cruciale !
-        res.json({ url: session.url });
-    } catch (err) {
-        console.error("❌ Erreur Stripe :", err.message);
-        res.status(500).json({ error: err.message });
+        res.json({ id: session.id });
+    } catch (error) {
+        console.error("❌ Erreur Stripe:", error.message);
+        res.status(500).json({ error: error.message });
     }
 });
 
-// ========== PAGE D'ACCUEIL ==========
-app.get("/", (req, res) => {
-    res.send(`
-        <!DOCTYPE html>
-        <html>
-        <head>
-            <title>Shimato - Abonnement</title>
-            <style>
-                body { font-family: Arial; text-align: center; padding: 50px; }
-                button { padding: 15px 30px; font-size: 18px; background: #5865F2; color: white; border: none; border-radius: 8px; cursor: pointer; }
-            </style>
-        </head>
-        <body>
-            <h1>Shimato Premium</h1>
-            <p>Abonnement à 10€/mois</p>
-            <button onclick="subscribe()">S'abonner avec Stripe</button>
-            <script>
-                async function subscribe() {
-                    const res = await fetch('/create-checkout-session', { method: 'POST' });
-                    const { url } = await res.json();
-                    window.location.href = url;
-                }
-            </script>
-        </body>
-        </html>
-    `);
-});
-
-// ========== BOT DISCORD ==========
-client.once("ready", () => {
-    console.log(`🤖 Bot Discord connecté : ${client.user.tag}`);
-});
-
 // ========== LANCEMENT ==========
-const PORT = process.env.PORT || 4242;
+const PORT = process.env.PORT || 10000;
 app.listen(PORT, () => {
     console.log(`✅ Serveur Stripe lancé sur http://localhost:${PORT}`);
-    client.login(process.env.DISCORD_TOKEN);
 });
