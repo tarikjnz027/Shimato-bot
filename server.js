@@ -19,13 +19,11 @@ app.get("/", (req, res) => {
             <style>
                 body { font-family: Arial; background: #f5f5f5; display: flex; justify-content: center; align-items: center; min-height: 100vh; margin: 0; padding: 20px; }
                 .container { background: white; border-radius: 16px; padding: 32px; max-width: 500px; width: 100%; }
-                h1 { margin: 0 0 8px 0; }
                 .price { color: #6772e5; font-size: 32px; font-weight: bold; margin: 16px 0; }
                 .form-group { margin-bottom: 20px; }
-                label { display: block; margin-bottom: 8px; font-weight: 500; }
+                label { display: block; margin-bottom: 8px; }
                 #payment-element { margin-bottom: 20px; padding: 12px; border: 1px solid #ddd; border-radius: 8px; }
                 button { background: #6772e5; color: white; border: none; border-radius: 8px; padding: 14px; font-size: 16px; cursor: pointer; width: 100%; }
-                button:hover { background: #5469d4; }
                 .error { color: red; margin-top: 12px; }
             </style>
         </head>
@@ -35,7 +33,7 @@ app.get("/", (req, res) => {
                 <div class="price">10,00 € / mois</div>
                 <div class="form-group">
                     <label>Email</label>
-                    <input type="email" id="email" placeholder="client@exemple.com" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box;">
+                    <input type="email" id="email" placeholder="client@exemple.com" style="width: 100%; padding: 12px; border: 1px solid #ddd; border-radius: 8px;">
                 </div>
                 <div class="form-group">
                     <label>Carte bancaire</label>
