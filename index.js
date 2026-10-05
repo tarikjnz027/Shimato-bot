@@ -1,81 +1,56 @@
-// ====================
-// 1. IMPORTS
-// ====================
-const { Client, GatewayIntentBits, Events } = require("discord.js");
-const express = require('express');
-require("dotenv").config();
-
-// ====================
-// 2. INITIALISATION
-// ====================
-const client = new Client({
-  intents: [
-    GatewayIntentBits.Guilds,
-    GatewayIntentBits.GuildMessages,
-    GatewayIntentBits.MessageContent,
-  ],
-});
-
-const app = express();
+require('dotenv').config();
+const { Client, GatewayIntentBits } = require('discord.js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
+const fs = require('fs');
+const path = require('path');
 
-// ====================
-// 3. MIDDLEWARE
-// ====================
-app.use(express.static('site'));
-app.use(express.json());
-
-// ====================
-// 4. ROUTE STRIPE
-// ====================
-app.post('/create-checkout-session', async (req, res) => {
-  console.log("✅ Route Stripe appelée !");
-  
-  try {
-    const discordId = req.body.discordId || "123456789012345678";
-    console.log("Discord ID reçu:", discordId);
-    
-    const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
-      line_items: [{
-        price: 'price_1SiA6kAPxHHnthPYqJXWohXs', // ⬅️ TON NOUVEAU PRICE ID
-        quantity: 1,
-      }],
-      mode: 'subscription',
-      success_url: 'http://localhost:4242/success.html',
-      cancel_url: 'http://localhost:4242/cancel.html',
-      metadata: { discord_id: discordId }
-    });
-
-    console.log("✅ Session Stripe créée:", session.id);
-    res.json({ url: session.url });
-    
-  } catch (error) {
-    console.error("❌ Erreur Stripe:", error);
-    res.status(500).json({ error: error.message });
-  }
+const client = new Client({
+    intents: [
+        GatewayIntentBits.Guilds,
+        GatewayIntentBits.GuildMembers,
+        GatewayIntentBits.GuildMessages
+    ]
 });
 
-// ====================
-// 5. BOT DISCORD
-// ====================
-client.once(Events.ClientReady, (c) => {
-  console.log(`✅ Bot Discord connecté : ${c.user.tag}`);
+// Chemin du fichier JSON
+const subscriptionsFile = path.join(__dirname, 'subscriptions.json');
+
+// Charger la liste des abonnements
+function loadSubscriptions() {
+    try {
+        if (fs.existsSync(subscriptionsFile)) {
+            const data = fs.readFileSync(subscriptionsFile, 'utf8');
+            return JSON.parse(data);
+        }
+    } catch (error) {
+        console.error('Erreur lecture subscriptions.json:', error.message);
+    }
+    return {};
+}
+
+client.once('ready', () => {
+    console.log(`✅ Bot connecté : ${client.user.tag}`);
 });
 
-client.on("messageCreate", async (message) => {
-  if (message.author.bot) return;
-  if (message.content === "!ping") {
-    message.reply("🏓 Pong !");
-  }
-});
+// Détection du départ + annulation Stripe
+client.on('guildMemberRemove', async (member) => {
+    console.log(`${member.user.tag} (ID: ${member.id}) a quitté le serveur.`);
 
-// ====================
-// 6. DÉMARRAGE
-// ====================
-const PORT = 4242;
-app.listen(PORT, () => {
-  console.log(`🚀 Serveur web sur http://localhost:${PORT}`);
-});
+    const subscriptions = loadSubscriptions();
+    const stripeSubscriptionId = subscriptions[member.id];
 
-client.login(process.env.DISCORD_TOKEN);
+    if (stripeSubscriptionId) {
+        try {
+            await stripe.subscriptions.cancel(stripeSubscriptionId);
+            console.log(`✅ Abonnement ${stripeSubscriptionId} annulé pour ${member.user.tag}`);
+
+            // Supprime l'entrée du fichier après annulation
+            delete subscriptions[member.id];
+            fs.writeFileSync(subscriptionsFile, JSON.stringify(subscriptions, null, 2));
+        } catch (error) {
+            console.error(`❌ Erreur annulation Stripe : ${error.message}`);
+        }
+    } else {
+        console.log(`ℹ️ Aucun abonnement trouvé pour ${member.user.tag}`);
+    }
+});

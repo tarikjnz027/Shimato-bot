@@ -20,3 +20,14 @@ jobs:
           echo "📡 Ping envoyé à https://shimato-bot.onrender.com à $(date)"
           curl -s -o /dev/null https://shimato-bot.onrender.com
           echo "✅ Ping terminé !"
+# 1. Vérifier les fichiers modifiés
+git status
+
+# 2. Ajouter tous les fichiers modifiés
+git add .
+
+# 3. Créer un "commit" avec une description
+git commit -m "Correction du price_id et ajout de la route /"
+
+# 4. Pousser vers GitHub
+git push origin main
