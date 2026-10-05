@@ -30,6 +30,7 @@ function loadSubscriptions() {
 
 client.once('ready', () => {
     console.log(`✅ Bot connecté : ${client.user.tag}`);
+    client.user.setPresence({ status: 'online' });
 });
 
 // Détection du départ + annulation Stripe
