@@ -1,9 +1,15 @@
+// ============================
+// 1. IMPORTS
+// ============================
 require('dotenv').config();
 const { Client, GatewayIntentBits } = require('discord.js');
 const stripe = require('stripe')(process.env.STRIPE_SECRET_KEY);
 const fs = require('fs');
 const path = require('path');
 
+// ============================
+// 2. INITIALISATION DU CLIENT
+// ============================
 const client = new Client({
     intents: [
         GatewayIntentBits.Guilds,
@@ -14,15 +20,16 @@ const client = new Client({
         status: 'online',
         activities: [{
             name: 'Shimato',
-            type: 0
+            type: 0 // 0 = "Joue à..."
         }]
     }
 });
 
-// Chemin du fichier JSON
+// ============================
+// 3. FICHIER DES ABONNEMENTS
+// ============================
 const subscriptionsFile = path.join(__dirname, 'subscriptions.json');
 
-// Charger la liste des abonnements
 function loadSubscriptions() {
     try {
         if (fs.existsSync(subscriptionsFile)) {
@@ -35,14 +42,16 @@ function loadSubscriptions() {
     return {};
 }
 
+// ============================
+// 4. BOT DISCORD
+// ============================
 client.once('ready', () => {
     console.log(`✅ Bot connecté : ${client.user.tag}`);
-    client.user.setPresence({ status: 'online' });
 });
 
 // Détection du départ + annulation Stripe
 client.on('guildMemberRemove', async (member) => {
-    console.log(`${member.user.tag} (ID: ${member.id}) a quitté le serveur.`);
+    console.log(`🔴 ${member.user.tag} (ID: ${member.id}) a quitté le serveur.`);
 
     const subscriptions = loadSubscriptions();
     const stripeSubscriptionId = subscriptions[member.id];
@@ -52,7 +61,6 @@ client.on('guildMemberRemove', async (member) => {
             await stripe.subscriptions.cancel(stripeSubscriptionId);
             console.log(`✅ Abonnement ${stripeSubscriptionId} annulé pour ${member.user.tag}`);
 
-            // Supprime l'entrée du fichier après annulation
             delete subscriptions[member.id];
             fs.writeFileSync(subscriptionsFile, JSON.stringify(subscriptions, null, 2));
         } catch (error) {
@@ -62,3 +70,8 @@ client.on('guildMemberRemove', async (member) => {
         console.log(`ℹ️ Aucun abonnement trouvé pour ${member.user.tag}`);
     }
 });
+
+// ============================
+// 5. CONNEXION
+// ============================
+client.login(process.env.DISCORD_TOKEN);
