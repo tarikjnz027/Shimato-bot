@@ -9,7 +9,14 @@ const client = new Client({
         GatewayIntentBits.Guilds,
         GatewayIntentBits.GuildMembers,
         GatewayIntentBits.GuildMessages
-    ]
+    ],
+    presence: {
+        status: 'online',
+        activities: [{
+            name: 'Shimato',
+            type: 0
+        }]
+    }
 });
 
 // Chemin du fichier JSON
